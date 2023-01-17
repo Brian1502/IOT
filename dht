@@ -1,0 +1,83 @@
+#include "DHTesp.h"
+#include <WiFi.h>
+#include "ThingSpeak.h"
+#include <Adafruit_Sensor.h>
+
+
+const int DHT_PIN = 12;
+const char* ssid = "Wokwi-GUEST";
+const char* pass = "";
+#define relay 18
+
+WiFiClient client;
+
+unsigned long myChannelNumber = 0;
+const char* myWriteAPIKey = "WZ7AZQUVGIHUATLY";
+const char* server = "api.thingspeak.com";
+
+unsigned long lastTime = 0;
+unsigned long timerDelay = 20000;
+
+float temp;
+float humi;
+float dingin,sedang,panas;
+
+DHTesp DHTSensor;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(relay, OUTPUT);
+  DHTSensor.setup(DHT_PIN, DHTesp::DHT22);
+  DHTSensor.getPin();
+  delay(10);
+  WiFi.begin(ssid, pass);
+  while(WiFi.status() != WL_CONNECTED){
+    delay(100);
+    Serial.println(".");
+  }
+  Serial.println("WiFi Connected!");
+  Serial.println(WiFi.localIP());
+
+  WiFi.mode(WIFI_STA);
+
+  ThingSpeak.begin(client);
+}
+
+void loop() {
+  temp = DHTSensor.getTemperature();
+  Serial.print("Suhu (°C): ");
+  Serial.println(temp);
+  humi = DHTSensor.getHumidity();
+  Serial.print("Kelembaban (%): ");
+  Serial.println(humi);
+
+  ThingSpeak.setField(1, temp);
+  ThingSpeak.setField(2, humi);
+  if(temp <= 20 ){
+    Serial.println("Suhu Dingin");
+    digitalWrite(relay, LOW);
+    Serial.println("Relay OFF");
+  }
+  else if (temp <= 40){
+    Serial.println("Suhu Sedang");
+    digitalWrite(relay, HIGH);
+    Serial.println("Relay On");
+  }
+  else if (temp <= 80){
+    Serial.println("Suhu Panas");
+    digitalWrite(relay, HIGH);
+    Serial.println("Relay On");
+  }
+  // else{digitalWrite(relay, LOW);
+  // Serial.println("Relay OFF");
+  // }
+
+  int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+  if (x == 200) {
+    Serial.println("channel update Sukses.");
+  }
+  else {
+    Serial.println("Masalah Updating cannel. HTTP error code" + String(x));
+  }
+  
+}
